@@ -35,6 +35,7 @@ myDataset['body_len'] = myDataset['sentence'].apply(lambda x: len(x) - x.count("
 myDataset['punct%'] = myDataset['sentence'].apply(lambda x: count_punct(x))
 myDataset['CAPS%'] = myDataset['sentence'].apply(lambda x: len([x for x in x.split() if x.isupper()]) / len(x.split()) * 100 if len(x.split()) != 0 else 0)
 #pd.set_option('display.max_columns', None)
+myDataset['score'] = myDataset.apply(lambda row: 'positive' if row['pos'] > row['neg']*-1 else 'negative', axis=1)
 print(myDataset.head(10))
 
 def clean_text(text):
@@ -72,6 +73,68 @@ print(X_tfidf_feat)
 # gs_fit = gs.fit(X_tfidf_feat, myDataset['pos'])
 # print("\n\nTF-IDF test scores:")
 # print(pd.DataFrame(gs_fit.cv_results_).sort_values('mean_test_score', ascending=False)[0:5])
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Histogram for 'body_len'
+bins = np.linspace(0, myDataset['body_len'].max(), 40)
+plt.hist(myDataset[myDataset['score'] == 'positive']['body_len'], bins, alpha=0.5, label='positive')
+plt.hist(myDataset[myDataset['score'] == 'negative']['body_len'], bins, alpha=0.5, label='negative')
+plt.legend(loc='upper right')
+plt.title("Body Length Distribution")
+plt.show()
+
+# Histogram for 'punct%'
+bins = np.linspace(0, (myDataset['punct%'].max())**(1/5), 10)
+plt.hist((myDataset[myDataset['score'] == 'positive']['punct%'])**(1/5), bins, alpha=0.5, label='positive')
+plt.hist((myDataset[myDataset['score'] == 'negative']['punct%'])**(1/5), bins, alpha=0.5, label='negative')
+plt.legend(loc='upper right')
+plt.title("Punctuation % Distribution")
+plt.show()
+
+# Histogram for 'CAPS%'
+bins = np.linspace(0,(myDataset['CAPS%'].max())**(1/5), 10)
+plt.hist((myDataset[myDataset['score'] == 'positive']['CAPS%'])**(1/5), bins, alpha=0.5, label='positive')
+plt.hist((myDataset[myDataset['score'] == 'negative']['CAPS%'])**(1/5), bins, alpha=0.5, label='negative')
+plt.legend(loc='upper right')
+plt.title("Capital Letters % Distribution")
+plt.show()
+
+# Histogram for 'body_len'
+bins = np.linspace(0, myDataset['body_len'].max(), 40)
+plt.hist(myDataset['body_len'], bins)
+plt.title("Body Length Distribution")
+plt.show()
+
+# Histogram for 'punct%'
+bins = np.linspace(0, myDataset['punct%'].max(), 40)
+plt.hist(myDataset['punct%'], bins)
+plt.title("Punctuation % Distribution")
+plt.show()
+
+# Histogram for 'CAPS%'
+bins = np.linspace(0, myDataset['CAPS%'].max(), 40)
+plt.hist(myDataset['CAPS%'], bins)
+plt.title("Capital Letters % Distribution")
+plt.show()
+
+# # Box-Cox transformations for 'body_len'
+# for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
+#     plt.hist((myDataset['body_len'])**(1/i), bins=40)
+#     plt.title("Box Cox transformation(body_len): 1/{}".format(str(i)))
+#     plt.show()
+#
+# # Box-Cox transformations for 'punct%'
+# for i in [1, 2, 3, 4, 5]:
+#     plt.hist((myDataset['punct%'])**(1/i), bins=40)
+#     plt.title("Box Cox transformation(punct%): 1/{}".format(str(i)))
+#     plt.show()
+#
+# for i in [1, 2, 3, 4, 5]:
+#     plt.hist((myDataset['CAPS%'])**(1/i), bins=40)
+#     plt.title("Box Cox transformation(CAPS%): 1/{}".format(str(i)))
+#     plt.show()
 
 
 from sklearn.ensemble import RandomForestRegressor

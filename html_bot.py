@@ -110,7 +110,7 @@ def scrapeCategories(name):
     print(number_of_pages)
     # pobieranie nazw i linkow do firm
     for i in range(1, int(number_of_pages)):
-        time.sleep(20)
+        time.sleep(5)
         url = "https://www.trustpilot.com/categories/"+name+"?page={}&sort=latest_review".format(i)
         page = scrape_website(url)
         # pobiernie nazw firm
@@ -152,7 +152,7 @@ stopwords = sw.words('english')
 
 
 # Load the fitted model
-with open('saved_model_all.pkl', 'rb') as file:
+with open('saved_model_all2.pkl', 'rb') as file:
     loaded_model = pickle.load(file)
 
 def clean_text(text):
@@ -170,7 +170,7 @@ def count_punct(text):
 
 
 # Load the fitted TfidfVectorizer
-with open('tfidf_vect_all.pkl', 'rb') as file:
+with open('tfidf_vect_all2.pkl', 'rb') as file:
     tfidf_vect = pickle.load(file)
 
 # # Use the function
