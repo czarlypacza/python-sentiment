@@ -140,22 +140,19 @@ plt.show()
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.multioutput import MultiOutputRegressor
 
-# Initialize the RandomForestRegressor
 rf_regressor = RandomForestRegressor(random_state=0)
 
-# Wrap the RandomForestRegressor with MultiOutputRegressor
 multi_output_regressor = MultiOutputRegressor(rf_regressor)
 
 param = {'estimator__n_estimators': [300],
         'estimator__max_depth': [90]}
 
-pd.set_option('display.max_columns', None) # Display all columns
+pd.set_option('display.max_columns', None)
 
 gs = GridSearchCV(multi_output_regressor, param, cv=5, n_jobs=-1)
 print("1")
 X_tfidf_feat.columns = X_tfidf_feat.columns.astype(str)
 print("2")
-# Concatenate 'pos' and 'neg' columns to form the target variable
 y = pd.concat([myDataset['pos'], myDataset['neg']], axis=1)
 print("3")
 gs_fit = gs.fit(X_tfidf_feat, y)
