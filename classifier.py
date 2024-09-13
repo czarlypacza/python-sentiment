@@ -11,7 +11,7 @@ from sklearn.model_selection import GridSearchCV
 lemmatizer = WordNetLemmatizer()
 
 
-myDataset = pd.read_json("results(4).json")
+myDataset = pd.read_json("results_new.json")
 #print(myDataset)
 
 # Remove rows where 'sentence' is an empty string
@@ -92,10 +92,17 @@ gs = GridSearchCV(multi_output_regressor, param, cv=5, n_jobs=-1)
 print("1")
 X_tfidf_feat.columns = X_tfidf_feat.columns.astype(str)
 print("2")
+
+from sklearn.decomposition import PCA
+
+# Apply PCA to reduce the number of features
+pca = PCA(n_components=1500)  # Adjust the number of components as needed
+X_tfidf_reduced = pca.fit_transform(X_tfidf_feat)
+
 # Concatenate 'pos' and 'neg' columns to form the target variable
 y = pd.concat([myDataset['pos'], myDataset['neg']], axis=1)
 print("3")
-gs_fit = gs.fit(X_tfidf_feat, y)
+gs_fit = gs.fit(X_tfidf_reduced, y)
 print("\n\nTF-IDF test scores:")
 print(pd.DataFrame(gs_fit.cv_results_).sort_values('mean_test_score', ascending=False)[0:5])
 
@@ -105,11 +112,11 @@ import pickle
 saved_model = pickle.dumps(gs_fit)
 
 # Save the fitted TfidfVectorizer
-with open('tfidf_vect_all2.pkl', 'wb') as file:
+with open('./new_model/tfidf_vect_new.pkl', 'wb') as file:
     pickle.dump(tfidf_vect, file)
 
 # Save the fitted model
-with open('saved_model_all2.pkl', 'wb') as file:
+with open('./new_model/saved_model_new.pkl', 'wb') as file:
     pickle.dump(gs_fit, file)
 
 def make_prediction(input_text):
@@ -131,7 +138,11 @@ def make_prediction(input_text):
 
     return prediction
 
-# Use the function
-input_text = input("Please enter your input text: ")
-prediction = make_prediction(input_text)
-print(prediction)
+loop = True
+while loop:
+    input_text = input("Please enter your input text: ")
+    if input_text == "exit":
+        loop = False
+        break
+    prediction = make_prediction(input_text)
+    print(prediction)

@@ -16,7 +16,7 @@ stopwords = sw.words('english')
 
 
 # Load the fitted model
-with open('saved_model_18k.pkl', 'rb') as file:
+with open('saved_model_all.pkl', 'rb') as file:
     loaded_model = pickle.load(file)
 
 def clean_text(text):
@@ -34,7 +34,7 @@ def count_punct(text):
 
 
 # Load the fitted TfidfVectorizer
-with open('tfidf_vect_18k.pkl', 'rb') as file:
+with open('tfidf_vect_all.pkl', 'rb') as file:
     tfidf_vect = pickle.load(file)
 
 def make_prediction(input_text):
