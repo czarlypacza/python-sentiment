@@ -1,13 +1,14 @@
+import json
 import time
-
 from bs4 import BeautifulSoup
 import requests
 
 global_names = []
 global_hrefs = []
 
-def scrape_website(url,headers=None):
-    page = requests.get(url,headers)
+
+def scrape_website(url, headers=None):
+    page = requests.get(url, headers)
     soup = BeautifulSoup(page.content, 'html.parser')
     return soup
 
@@ -30,40 +31,38 @@ def scrape_reviews(review_page, name_of_company, reviews):
 
 
 def scrape(name):
-
-    name_of_company = name
-    name_of_company = name_of_company.lower()
-
+    name_of_company = name.lower()
     matched_names = [name for name in global_names if name_of_company in name]
     print(matched_names)
 
     if len(matched_names) == 1:
         global_names_index = global_names.index(matched_names[0])
-        url = "https://www.trustpilot.com{}".format(global_hrefs[global_names_index])
+        url = global_hrefs[global_names_index]
         print(url)
 
-
         review_page = scrape_website(url)
-        number_of_pages = review_page.find_all('a', attrs={"name": "pagination-button-last"})
-        number_of_pages = number_of_pages[0].get_text()
-        print(number_of_pages)
 
+        # Find the number of pages
+        pagination_buttons = review_page.find_all('a',
+                                                  attrs={"aria-label": lambda x: x and x.startswith("Page number")})
+        number_of_pages = 1  # Default to 1 if not found
+        if pagination_buttons:
+            number_of_pages = int(pagination_buttons[-1].get_text())
+        print(number_of_pages)
 
         reviews = {}
         reviews[name_of_company] = []
 
-        reviews = scrape_reviews(review_page, name_of_company,reviews)
+        reviews = scrape_reviews(review_page, name_of_company, reviews)
 
-        for i in range(2,int(number_of_pages)):
-            url = "https://www.trustpilot.com{}?page={}".format(global_hrefs[global_names_index],i)
+        for i in range(2, number_of_pages + 1):
+            url = f"{global_hrefs[global_names_index]}?page={i}"
             review_page = scrape_website(url)
             reviews = scrape_reviews(review_page, name_of_company, reviews)
-            print("page {}".format(i))
+            print(f"page {i}")
 
         print(reviews)
-
         return reviews
-
 
 
 # from sklearn.feature_extraction.text import TfidfVectorizer
@@ -78,11 +77,14 @@ def make_prediction(input_text):
     input_data = pd.DataFrame([input_text], columns=['sentence'])
     input_data['body_len'] = input_data['sentence'].apply(lambda x: len(x) - x.count(" "))
     input_data['punct%'] = input_data['sentence'].apply(lambda x: count_punct(x))
-    input_data['CAPS%'] = input_data['sentence'].apply(lambda x: len([x for x in x.split() if x.isupper()]) / len(x.split()) * 100 if len(x.split()) != 0 else 0)
+    input_data['CAPS%'] = input_data['sentence'].apply(
+        lambda x: len([x for x in x.split() if x.isupper()]) / len(x.split()) * 100 if len(x.split()) != 0 else 0)
 
     # Transform the input
     X_input_tfidf = tfidf_vect.transform(input_data['sentence'])
-    X_input_tfidf_feat = pd.concat([input_data['body_len'], input_data['punct%'], input_data['CAPS%'], pd.DataFrame(X_input_tfidf.toarray())], axis=1)
+    X_input_tfidf_feat = pd.concat(
+        [input_data['body_len'], input_data['punct%'], input_data['CAPS%'], pd.DataFrame(X_input_tfidf.toarray())],
+        axis=1)
 
     # Make sure the columns are of type string
     X_input_tfidf_feat.columns = X_input_tfidf_feat.columns.astype(str)
@@ -93,8 +95,6 @@ def make_prediction(input_text):
     return prediction
 
 
-
-
 from flask import Flask, jsonify
 from flask_cors import CORS
 
@@ -103,41 +103,64 @@ CORS(app)
 
 
 def scrapeCategories(name):
-    url = "https://www.trustpilot.com/categories/"+name+"?page=1&sort=latest_review"
+    url = f"https://www.trustpilot.com/categories/{name}?page=1"
     first_page = scrape_website(url)
-    number_of_pages = first_page.find_all('a', attrs={"name": "pagination-button-last"})
-    number_of_pages = number_of_pages[0].get_text()
-    print(number_of_pages)
-    # pobieranie nazw i linkow do firm
-    for i in range(1, int(number_of_pages)):
-        time.sleep(5)
-        url = "https://www.trustpilot.com/categories/"+name+"?page={}&sort=reviews_count".format(i)
-        page = scrape_website(url)
-        # pobiernie nazw firm
-        names = page.find_all('p', attrs={"class": "styles_displayName__GOhL2"})
-        names = [name.get_text().lower() for name in names]
-        # pobieranie linkow do firm
-        link_elements = page.find_all('a', attrs={"name": "business-unit-card"})
-        hrefs = [link.get('href') for link in link_elements]
-        print(names)
-        print(hrefs)
-        print("\nend of page {}\n\n".format(i))
-        global_names.extend(names)
-        global_hrefs.extend(hrefs)
+
+    # Find the number of pages
+    number_of_pages = 1  # Default to 1 if not found
+    pagination_button = first_page.find('a', attrs={"name": "pagination-button-last"})
+    if pagination_button:
+        number_of_pages = int(pagination_button.get_text())
+
+    # Find the script tag containing the JSON data
+    script_tag = first_page.find('script', {'id': '__NEXT_DATA__'})
+    if script_tag:
+        json_data = json.loads(script_tag.string)
+
+        # Extract business names and links from the first page
+        extract_business_info(json_data)
+
+        # Scrape the remaining pages
+        for i in range(2, number_of_pages + 1):
+            time.sleep(5)
+            url = f"https://www.trustpilot.com/categories/{name}?page={i}"
+            page = scrape_website(url)
+            script_tag = page.find('script', {'id': '__NEXT_DATA__'})
+            if script_tag:
+                json_data = json.loads(script_tag.string)
+                extract_business_info(json_data)
+            print(f"\nend of page {i}\n\n")
+
+
+def extract_business_info(json_data):
+    if 'pageProps' in json_data['props'] and 'businessUnits' in json_data['props']['pageProps']:
+        business_units = json_data['props']['pageProps']['businessUnits']['businesses']
+        for business in business_units:
+            name = business['displayName'].lower()
+            href = f"https://www.trustpilot.com/review/{business['identifyingName']}"
+            global_names.append(name)
+            global_hrefs.append(href)
+            print(name)
+            print(href)
 
 
 # trustpilot
 # pobieranie ilosci stron
-#scrapeCategories("insurance_agency")
-#scrapeCategories("bank")
+
+scrapeCategories("bank")
 #scrapeCategories("car_dealer")
+#scrapeCategories("jewelry_store")
+#scrapeCategories("travel_insurance_company")
 #scrapeCategories("furniture_store")
+#scrapeCategories("clothing_store")
+#scrapeCategories("fitness_and_nutrition_service")
+
+#scrapeCategories("insurance_agency")
+
 # scrapeCategories("mortgage_broker")
-# scrapeCategories("clothing_store")
-scrapeCategories("real_estate_agents")
+
+#scrapeCategories("real_estate_agents")
 # scrapeCategories("womens_clothing_store")
-
-
 
 
 import pickle
@@ -155,17 +178,17 @@ lemmatizer = WordNetLemmatizer()
 
 stopwords = sw.words('english')
 
-
-
 # Load the fitted model
-with open('saved_model_all.pkl', 'rb') as file:
+with open('./model_117k_est200_max90/saved_model_new.pkl', 'rb') as file:
     loaded_model = pickle.load(file)
+
 
 def clean_text(text):
     text = "".join([word.lower() for word in text if word not in string.punctuation])
     tokens = re.split('\W+', text)
     text = [lemmatizer.lemmatize(word) for word in tokens if word not in stopwords]
     return text
+
 
 def count_punct(text):
     text_length = len(text) - text.count(" ")
@@ -176,8 +199,9 @@ def count_punct(text):
 
 
 # Load the fitted TfidfVectorizer
-with open('tfidf_vect_all.pkl', 'rb') as file:
+with open('./model_117k_est200_max90/tfidf_vect_new.pkl', 'rb') as file:
     tfidf_vect = pickle.load(file)
+
 
 # # Use the function
 # input_text = input("Please enter your input text: ")
@@ -189,6 +213,7 @@ with open('tfidf_vect_all.pkl', 'rb') as file:
 def get_reviews(name):
     # Assuming reviews is your dictionary containing the review data
     return jsonify(scrape(name))
+
 
 @app.route('/sentiment/<name>', methods=['GET'])
 def classify_reviews(name):
@@ -204,11 +229,8 @@ def classify_reviews(name):
     return jsonify(result)
 
 
-
-
 if __name__ == '__main__':
-    app.run(port=5000)  # Runs the Flask server in development mode
-
+    app.run(host='0.0.0.0', port=5000)  # Runs the Flask server accessible from other devices
 
 #/review/www.allianztravelinsurance.com
 #/review/withfaye.com
@@ -229,7 +251,6 @@ if __name__ == '__main__':
 #     print(p+"\n\n")
 
 
-
 # from selenium import webdriver
 # from selenium.webdriver.chrome.options import Options
 #
@@ -247,7 +268,3 @@ if __name__ == '__main__':
 #
 # # Close the browser
 # driver.quit()
-
-
-
-
