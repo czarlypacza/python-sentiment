@@ -95,7 +95,7 @@ def make_prediction(input_text):
     return prediction
 
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -227,6 +227,40 @@ def classify_reviews(name):
 
     result = {'result': result}
     return jsonify(result)
+
+@app.route('/sentiment', methods=['POST'])
+def classify_review():
+    data = request.get_json()
+    input_text = data.get('text', '')
+
+    if not input_text:
+        return jsonify({"error": "No text provided"}), 400
+
+    sentences = input_text.split('.')
+    results = []
+    scores = []
+
+    for sentence in sentences:
+        if sentence.strip():
+            sentiment = make_prediction(sentence)
+            sentiment = sentiment.tolist()
+            pos, neg = sentiment[0]
+            sentiment_label = "positive" if pos > neg else "negative" if neg > pos else "neutral"
+            results.append({
+                "sentence": sentence,
+                "pos": pos,
+                "neg": neg,
+                "sentiment": sentiment_label
+            })
+            scores.append({"pos": pos, "neg": neg})
+
+    response = {
+        "scores": scores,
+        "results": results
+    }
+    print(response)
+
+    return jsonify(response)
 
 
 if __name__ == '__main__':
