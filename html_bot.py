@@ -155,7 +155,7 @@ scrapeCategories("bank")
 #scrapeCategories("clothing_store")
 #scrapeCategories("fitness_and_nutrition_service")
 
-#scrapeCategories("insurance_agency")
+scrapeCategories("insurance_agency")
 
 # scrapeCategories("mortgage_broker")
 
