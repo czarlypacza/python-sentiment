@@ -4,9 +4,34 @@ from bs4 import BeautifulSoup
 import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import diskcache as dc
 
 app = Flask(__name__)
 CORS(app)
+
+cache = dc.Cache('cache_directory')
+
+#database setup during the first run
+import sqlite3
+
+def init_db():
+    conn = sqlite3.connect('scraper.db')
+    cursor = conn.cursor()
+    ############################
+    # Tutaj UNIQUE moze narobić dużo problemów więc warto na to uważać
+    ############################
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS companies (
+            id INTEGER PRIMARY KEY,
+            name TEXT UNIQUE,
+            url TEXT,
+            review_count INTEGER
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
 
 global_names = []
 global_hrefs = []
@@ -33,6 +58,16 @@ def scrape_reviews(review_page, name_of_company, reviews):
         reviews[name_of_company].append(review)
 
     return reviews
+
+def update_company_data(name, url, review_count):
+    conn = sqlite3.connect('scraper.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT OR REPLACE INTO companies (name, url, review_count)
+        VALUES (?, ?, ?)
+    ''', (name, url, review_count))
+    conn.commit()
+    conn.close()
 
 
 def scrape(name):
@@ -65,6 +100,9 @@ def scrape(name):
             review_page = scrape_website(url)
             reviews = scrape_reviews(review_page, name_of_company, reviews)
             print(f"page {i}")
+
+        review_count = len(reviews[name_of_company])
+        update_company_data(name_of_company, url, review_count)
 
         print(reviews)
         return reviews
@@ -106,38 +144,68 @@ def extract_business_info(json_data):
         for business in business_units:
             name = business['displayName'].lower()
             href = f"https://www.trustpilot.com/review/{business['identifyingName']}"
+            reviews = business['numberOfReviews']
             global_names.append(name)
             global_hrefs.append(href)
             print(name)
             print(href)
+            print(reviews)
+            conn = sqlite3.connect('scraper.db')
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR IGNORE INTO companies (name, url, review_count) VALUES (?, ?, ?)
+            ''', (name, href, reviews))
+            conn.commit()
+            conn.close()
 
 
 # trustpilot
 # pobieranie ilosci stron
 
-scrapeCategories("bank")
-#scrapeCategories("car_dealer")
-#scrapeCategories("jewelry_store")
-#scrapeCategories("travel_insurance_company")
-#scrapeCategories("furniture_store")
-#scrapeCategories("clothing_store")
-#scrapeCategories("fitness_and_nutrition_service")
+def scrape_all_companies():
+    scrapeCategories("bank")
+    #scrapeCategories("car_dealer")
+    #scrapeCategories("jewelry_store")
+    #scrapeCategories("travel_insurance_company")
+    #scrapeCategories("furniture_store")
+    #scrapeCategories("clothing_store")
+    #scrapeCategories("fitness_and_nutrition_service")
 
-#scrapeCategories("insurance_agency")
+    #scrapeCategories("insurance_agency")
 
-# scrapeCategories("mortgage_broker")
+    # scrapeCategories("mortgage_broker")
 
-#scrapeCategories("real_estate_agents")
-# scrapeCategories("womens_clothing_store")
+    #scrapeCategories("real_estate_agents")
+    # scrapeCategories("womens_clothing_store")
 
-
+scrape_all_companies()
 
 @app.route('/reviews/<name>', methods=['GET'])
 def get_reviews(name):
-    # Assuming reviews is your dictionary containing the review data
-    return jsonify(scrape(name))
+    cached_data = cache.get(name)
+    if cached_data:
+        return jsonify(cached_data)
+    
+    reviews = scrape(name)
+    cache.set(name, reviews, expire=3600)  # Cache for 1 hour
+    return jsonify(reviews)
+
+@app.route('/companies', methods=['GET'])
+def get_companies():
+    conn = sqlite3.connect('scraper.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT name, review_count FROM companies')
+    companies = cursor.fetchall()
+    conn.close()
+    return jsonify(companies)
 
 
+@app.route('/rescrape', methods=['POST'])
+def rescrape():
+    scrape_all_companies()
+    cache.clear()  # Clear the cache after rescraping
+    return jsonify({"message": "Rescraping started"}), 200  # Ensure a valid response tuple is returned
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)  # Runs the Flask server accessible from other devices
+

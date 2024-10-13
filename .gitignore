@@ -1,0 +1,12 @@
+.fleet
+.idea
+cache_directory
+img
+new_model
+new_model2
+model_*
+*.pkl
+*.html
+*.db
+*.txt
+*.code-workspace

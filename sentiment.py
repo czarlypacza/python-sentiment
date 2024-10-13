@@ -105,7 +105,8 @@ def classify_review():
             sentiment = make_prediction(sentence)
             sentiment = sentiment.tolist()
             pos, neg = sentiment[0]
-            sentiment_label = "positive" if pos > neg else "negative" if neg > pos else "neutral"
+            
+            sentiment_label = "positive" if pos > neg*-1 else "negative" if neg*-1 > pos else "neutral"
             results.append({
                 "sentence": sentence,
                 "pos": pos,
