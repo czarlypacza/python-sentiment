@@ -15,13 +15,16 @@ cache = dc.Cache('cache_directory')
 import sqlite3
 
 def init_db():
-    conn = sqlite3.connect('scraper.db')
+    conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
+    if conn is None:
+        print("Error connecting to the database")
+        return
     cursor = conn.cursor()
     ############################
     # Tutaj UNIQUE moze narobić dużo problemów więc warto na to uważać
     ############################
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS companies (
+        CREATE TABLE IF NOT EXISTS Company (
             id INTEGER PRIMARY KEY,
             name TEXT UNIQUE,
             url TEXT,
@@ -60,10 +63,10 @@ def scrape_reviews(review_page, name_of_company, reviews):
     return reviews
 
 def update_company_data(name, url, review_count):
-    conn = sqlite3.connect('scraper.db')
+    conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT OR REPLACE INTO companies (name, url, review_count)
+        INSERT OR IGNORE INTO Company (name, url, review_count)
         VALUES (?, ?, ?)
     ''', (name, url, review_count))
     conn.commit()
@@ -102,7 +105,7 @@ def scrape(name):
             print(f"page {i}")
 
         review_count = len(reviews[name_of_company])
-        update_company_data(name_of_company, url, review_count)
+        update_company_data(name_of_company, url, review_count.__int__())
 
         print(reviews)
         return reviews
@@ -150,10 +153,10 @@ def extract_business_info(json_data):
             print(name)
             print(href)
             print(reviews)
-            conn = sqlite3.connect('scraper.db')
+            conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT OR IGNORE INTO companies (name, url, review_count) VALUES (?, ?, ?)
+                INSERT OR IGNORE INTO Company (name, url, review_count) VALUES (?, ?, ?)
             ''', (name, href, reviews))
             conn.commit()
             conn.close()
@@ -192,9 +195,9 @@ def get_reviews(name):
 
 @app.route('/companies', methods=['GET'])
 def get_companies():
-    conn = sqlite3.connect('scraper.db')
+    conn = sqlite3.connect('../NextJS/nextjs_front/prisma/dev.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT name, review_count FROM companies')
+    cursor.execute('SELECT name, review_count FROM Company')
     companies = cursor.fetchall()
     conn.close()
     return jsonify(companies)
