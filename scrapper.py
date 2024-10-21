@@ -31,6 +31,23 @@ def init_db():
             review_count INTEGER
         )
     ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Category (
+            id INTEGER PRIMARY KEY,
+            name TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS CompanyCategory (
+            id INTEGER PRIMARY KEY,
+            company_id INTEGER,
+            category_id INTEGER,
+            FOREIGN KEY (company_id) REFERENCES Company(id),
+            FOREIGN KEY (category_id) REFERENCES Category(id)
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -126,8 +143,19 @@ def scrapeCategories(name):
     if script_tag:
         json_data = json.loads(script_tag.string)
 
+        conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT OR IGNORE INTO Category (name) VALUES (?)
+        ''', (name,))
+        cursor.execute('SELECT id FROM Category WHERE name = ?', (name,))
+        category_id = cursor.fetchone()[0]
+
+        
+
         # Extract business names and links from the first page
-        extract_business_info(json_data)
+        extract_business_info(json_data, category_id, cursor)
 
         # Scrape the remaining pages
         for i in range(2, number_of_pages + 1):
@@ -137,11 +165,14 @@ def scrapeCategories(name):
             script_tag = page.find('script', {'id': '__NEXT_DATA__'})
             if script_tag:
                 json_data = json.loads(script_tag.string)
-                extract_business_info(json_data)
+                extract_business_info(json_data, category_id, cursor)
             print(f"\nend of page {i}\n\n")
+        conn.commit()
+        conn.close()
 
 
-def extract_business_info(json_data):
+
+def extract_business_info(json_data, category_id, cursor):
     if 'pageProps' in json_data['props'] and 'businessUnits' in json_data['props']['pageProps']:
         business_units = json_data['props']['pageProps']['businessUnits']['businesses']
         for business in business_units:
@@ -153,13 +184,19 @@ def extract_business_info(json_data):
             print(name)
             print(href)
             print(reviews)
-            conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
-            cursor = conn.cursor()
+            
             cursor.execute('''
                 INSERT OR IGNORE INTO Company (name, url, review_count) VALUES (?, ?, ?)
             ''', (name, href, reviews))
-            conn.commit()
-            conn.close()
+            cursor.execute('SELECT id FROM Company WHERE name = ?', (name,))
+            company_id = cursor.fetchone()[0]
+
+            cursor.execute('''
+                INSERT OR IGNORE INTO CompanyCategory (company_id, category_id) VALUES (?, ?)
+            ''', (company_id, category_id))
+
+            
+
 
 
 # trustpilot
@@ -167,9 +204,9 @@ def extract_business_info(json_data):
 
 def scrape_all_companies():
     scrapeCategories("bank")
-    #scrapeCategories("car_dealer")
-    #scrapeCategories("jewelry_store")
-    #scrapeCategories("travel_insurance_company")
+    scrapeCategories("car_dealer")
+    scrapeCategories("jewelry_store")
+    scrapeCategories("travel_insurance_company")
     #scrapeCategories("furniture_store")
     #scrapeCategories("clothing_store")
     #scrapeCategories("fitness_and_nutrition_service")
