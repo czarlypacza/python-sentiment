@@ -51,11 +51,25 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
+
 
 global_names = []
 global_hrefs = []
 
+def load_companies_and_urls():
+    conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT name, url FROM Company')
+    companies = cursor.fetchall()
+    conn.close()
+    for company in companies:
+        global_names.append(company[0])
+        global_hrefs.append(company[1])
+
+
+init_db()
+
+load_companies_and_urls()
 
 def scrape_website(url, headers=None):
     page = requests.get(url, headers)
@@ -179,7 +193,11 @@ def extract_business_info(json_data, category_id, cursor):
             name = business['displayName'].lower()
             href = f"https://www.trustpilot.com/review/{business['identifyingName']}"
             reviews = business['numberOfReviews']
+            if global_names.__contains__(name):
+                continue
             global_names.append(name)
+            if global_hrefs.__contains__(href):
+                continue
             global_hrefs.append(href)
             print(name)
             print(href)
@@ -203,13 +221,13 @@ def extract_business_info(json_data, category_id, cursor):
 # pobieranie ilosci stron
 
 def scrape_all_companies():
-    scrapeCategories("bank")
-    scrapeCategories("car_dealer")
-    scrapeCategories("jewelry_store")
-    scrapeCategories("travel_insurance_company")
-    #scrapeCategories("furniture_store")
-    #scrapeCategories("clothing_store")
-    #scrapeCategories("fitness_and_nutrition_service")
+    #scrapeCategories("bank")
+    #scrapeCategories("car_dealer")
+    #scrapeCategories("jewelry_store")
+    #scrapeCategories("travel_insurance_company")
+    scrapeCategories("furniture_store")
+    scrapeCategories("clothing_store")
+    scrapeCategories("fitness_and_nutrition_service")
 
     #scrapeCategories("insurance_agency")
 
@@ -218,7 +236,7 @@ def scrape_all_companies():
     #scrapeCategories("real_estate_agents")
     # scrapeCategories("womens_clothing_store")
 
-scrape_all_companies()
+#scrape_all_companies()
 
 @app.route('/reviews/<name>', methods=['GET'])
 def get_reviews(name):
@@ -240,7 +258,7 @@ def get_companies():
     return jsonify(companies)
 
 
-@app.route('/rescrape', methods=['POST'])
+@app.route('/rescrape', methods=['GET'])
 def rescrape():
     scrape_all_companies()
     cache.clear()  # Clear the cache after rescraping
