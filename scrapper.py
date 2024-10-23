@@ -104,7 +104,7 @@ def update_company_data(name, url, review_count):
     conn.close()
 
 
-def scrape(name):
+def scrape(name, limit=None):
     name_of_company = name.lower()
     matched_names = [name for name in global_names if name_of_company in name]
     print(matched_names)
@@ -129,7 +129,10 @@ def scrape(name):
 
         reviews = scrape_reviews(review_page, name_of_company, reviews)
 
+
         for i in range(2, number_of_pages + 1):
+            if limit and len(reviews[name_of_company]) >= limit:
+                break
             url = f"{global_hrefs[global_names_index]}?page={i}"
             review_page = scrape_website(url)
             reviews = scrape_reviews(review_page, name_of_company, reviews)
@@ -139,7 +142,8 @@ def scrape(name):
         update_company_data(name_of_company, url, review_count.__int__())
 
         print(reviews)
-        return reviews
+        limited_reviews = reviews[name_of_company][:limit] if limit else reviews[name_of_company]
+        return {name_of_company: limited_reviews}
 
 
 def scrapeCategories(name):
@@ -225,28 +229,42 @@ def scrape_all_companies():
     #scrapeCategories("car_dealer")
     #scrapeCategories("jewelry_store")
     #scrapeCategories("travel_insurance_company")
-    scrapeCategories("furniture_store")
-    scrapeCategories("clothing_store")
-    scrapeCategories("fitness_and_nutrition_service")
+    #scrapeCategories("furniture_store")
+    #scrapeCategories("clothing_store")
+    #scrapeCategories("fitness_and_nutrition_service")
 
     #scrapeCategories("insurance_agency")
 
-    # scrapeCategories("mortgage_broker")
+    #scrapeCategories("mortgage_broker")
 
     #scrapeCategories("real_estate_agents")
-    # scrapeCategories("womens_clothing_store")
+    scrapeCategories("womens_clothing_store")
 
 #scrape_all_companies()
 
 @app.route('/reviews/<name>', methods=['GET'])
 def get_reviews(name):
+    limit = request.args.get('limit', default=None, type=int)
+    print(limit)
     cached_data = cache.get(name)
     if cached_data:
-        return jsonify(cached_data)
+        if limit:
+            if len(cached_data[name]) > limit:
+                limited_data = cached_data[name][:limit]
+                return jsonify({name: limited_data})
+            else:
+                reviews = scrape(name, limit)
+                cache.set(name, reviews, expire=3600)
+                return jsonify(reviews)
+        else:
+            limited_data = cached_data[name]
+            return jsonify({name: limited_data})
+    else:
+        reviews = scrape(name, limit)
+        cache.set(name, reviews, expire=3600)  # Cache for 1 hour
+        return jsonify(reviews)
     
-    reviews = scrape(name)
-    cache.set(name, reviews, expire=3600)  # Cache for 1 hour
-    return jsonify(reviews)
+    
 
 @app.route('/companies', methods=['GET'])
 def get_companies():
