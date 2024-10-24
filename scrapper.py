@@ -116,6 +116,14 @@ def scrape(name, limit=None):
 
         review_page = scrape_website(url)
 
+        # with open(f"{name_of_company}_page.html", "w", encoding="utf-8") as file:
+        #     file.write(str(review_page))
+
+        section = review_page.find_all('section', class_="styles_businessInformation__6ks_E")
+        span = section[0].find_all('span', class_="typography_body-l__KUYFJ typography_appearance-subtle__8_H2l styles_text__W4hWi")
+        review_count = span[0].get_text().split('\xa0')[0]
+        print(review_count)
+
         # Find the number of pages
         pagination_buttons = review_page.find_all('a',
                                                   attrs={"aria-label": lambda x: x and x.startswith("Page number")})
@@ -138,7 +146,7 @@ def scrape(name, limit=None):
             reviews = scrape_reviews(review_page, name_of_company, reviews)
             print(f"page {i}")
 
-        review_count = len(reviews[name_of_company])
+        # review_count = len(reviews[name_of_company])
         update_company_data(name_of_company, url, review_count.__int__())
 
         print(reviews)
@@ -257,14 +265,26 @@ def get_reviews(name):
                 cache.set(name, reviews, expire=3600)
                 return jsonify(reviews)
         else:
-            limited_data = cached_data[name]
-            return jsonify({name: limited_data})
+            if len(cached_data[name]) >= get_company_reviews_count(name):
+                limited_data = cached_data[name]
+                return jsonify({name: limited_data})
+            else:
+                reviews = scrape(name, limit)
+                cache.set(name, reviews, expire=3600)
+                return jsonify(reviews)
     else:
         reviews = scrape(name, limit)
         cache.set(name, reviews, expire=3600)  # Cache for 1 hour
         return jsonify(reviews)
     
     
+def get_company_reviews_count(name):
+    conn = sqlite3.connect('../NextJS/nextjs_front/prisma/dev.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT review_count FROM Company WHERE name = ?', (name,))
+    review_count = cursor.fetchone()[0]
+    conn.close()
+    return review_count
 
 @app.route('/companies', methods=['GET'])
 def get_companies():
