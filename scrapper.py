@@ -147,7 +147,7 @@ def scrape(name, limit=None):
             print(f"page {i}")
 
         # review_count = len(reviews[name_of_company])
-        update_company_data(name_of_company, url, review_count.__int__())
+        update_company_data(name_of_company, url, int(review_count))
 
         print(reviews)
         limited_reviews = reviews[name_of_company][:limit] if limit else reviews[name_of_company]
@@ -257,10 +257,13 @@ def get_reviews(name):
     cached_data = cache.get(name)
     if cached_data:
         if limit:
-            if len(cached_data[name]) > limit:
+            if len(cached_data[name]) >= limit:
                 limited_data = cached_data[name][:limit]
                 return jsonify({name: limited_data})
             else:
+                if len(cached_data[name]) >= get_company_reviews_count(name):
+                    limited_data = cached_data[name]
+                    return jsonify({name: limited_data})
                 reviews = scrape(name, limit)
                 cache.set(name, reviews, expire=3600)
                 return jsonify(reviews)
@@ -279,7 +282,7 @@ def get_reviews(name):
     
     
 def get_company_reviews_count(name):
-    conn = sqlite3.connect('../NextJS/nextjs_front/prisma/dev.db')
+    conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
     cursor = conn.cursor()
     cursor.execute('SELECT review_count FROM Company WHERE name = ?', (name,))
     review_count = cursor.fetchone()[0]
