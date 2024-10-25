@@ -10,3 +10,7 @@ model_*
 *.db
 *.txt
 *.code-workspace
+
+results
+logs
+fine_tuned_model
