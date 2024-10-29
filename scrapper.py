@@ -51,11 +51,25 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
+
 
 global_names = []
 global_hrefs = []
 
+def load_companies_and_urls():
+    conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT name, url FROM Company')
+    companies = cursor.fetchall()
+    conn.close()
+    for company in companies:
+        global_names.append(company[0])
+        global_hrefs.append(company[1])
+
+
+init_db()
+
+load_companies_and_urls()
 
 def scrape_website(url, headers=None):
     page = requests.get(url, headers)
@@ -90,7 +104,7 @@ def update_company_data(name, url, review_count):
     conn.close()
 
 
-def scrape(name):
+def scrape(name, limit=None):
     name_of_company = name.lower()
     matched_names = [name for name in global_names if name_of_company in name]
     print(matched_names)
@@ -101,6 +115,14 @@ def scrape(name):
         print(url)
 
         review_page = scrape_website(url)
+
+        # with open(f"{name_of_company}_page.html", "w", encoding="utf-8") as file:
+        #     file.write(str(review_page))
+
+        section = review_page.find_all('section', class_="styles_businessInformation__6ks_E")
+        span = section[0].find_all('span', class_="typography_body-l__KUYFJ typography_appearance-subtle__8_H2l styles_text__W4hWi")
+        review_count = span[0].get_text().split('\xa0')[0]
+        print(review_count)
 
         # Find the number of pages
         pagination_buttons = review_page.find_all('a',
@@ -115,17 +137,21 @@ def scrape(name):
 
         reviews = scrape_reviews(review_page, name_of_company, reviews)
 
+
         for i in range(2, number_of_pages + 1):
+            if limit and len(reviews[name_of_company]) >= limit:
+                break
             url = f"{global_hrefs[global_names_index]}?page={i}"
             review_page = scrape_website(url)
             reviews = scrape_reviews(review_page, name_of_company, reviews)
             print(f"page {i}")
 
-        review_count = len(reviews[name_of_company])
-        update_company_data(name_of_company, url, review_count.__int__())
+        # review_count = len(reviews[name_of_company])
+        update_company_data(name_of_company, url, int(review_count))
 
         print(reviews)
-        return reviews
+        limited_reviews = reviews[name_of_company][:limit] if limit else reviews[name_of_company]
+        return {name_of_company: limited_reviews}
 
 
 def scrapeCategories(name):
@@ -179,7 +205,11 @@ def extract_business_info(json_data, category_id, cursor):
             name = business['displayName'].lower()
             href = f"https://www.trustpilot.com/review/{business['identifyingName']}"
             reviews = business['numberOfReviews']
+            if global_names.__contains__(name):
+                continue
             global_names.append(name)
+            if global_hrefs.__contains__(href):
+                continue
             global_hrefs.append(href)
             print(name)
             print(href)
@@ -203,32 +233,61 @@ def extract_business_info(json_data, category_id, cursor):
 # pobieranie ilosci stron
 
 def scrape_all_companies():
-    scrapeCategories("bank")
-    scrapeCategories("car_dealer")
-    scrapeCategories("jewelry_store")
-    scrapeCategories("travel_insurance_company")
+    #scrapeCategories("bank")
+    #scrapeCategories("car_dealer")
+    #scrapeCategories("jewelry_store")
+    #scrapeCategories("travel_insurance_company")
     #scrapeCategories("furniture_store")
     #scrapeCategories("clothing_store")
     #scrapeCategories("fitness_and_nutrition_service")
 
     #scrapeCategories("insurance_agency")
 
-    # scrapeCategories("mortgage_broker")
+    #scrapeCategories("mortgage_broker")
 
     #scrapeCategories("real_estate_agents")
-    # scrapeCategories("womens_clothing_store")
+    scrapeCategories("womens_clothing_store")
 
-scrape_all_companies()
+#scrape_all_companies()
 
 @app.route('/reviews/<name>', methods=['GET'])
 def get_reviews(name):
+    limit = request.args.get('limit', default=None, type=int)
+    print(limit)
     cached_data = cache.get(name)
     if cached_data:
-        return jsonify(cached_data)
+        if limit:
+            if len(cached_data[name]) >= limit:
+                limited_data = cached_data[name][:limit]
+                return jsonify({name: limited_data})
+            else:
+                if len(cached_data[name]) >= get_company_reviews_count(name):
+                    limited_data = cached_data[name]
+                    return jsonify({name: limited_data})
+                reviews = scrape(name, limit)
+                cache.set(name, reviews, expire=3600)
+                return jsonify(reviews)
+        else:
+            if len(cached_data[name]) >= get_company_reviews_count(name):
+                limited_data = cached_data[name]
+                return jsonify({name: limited_data})
+            else:
+                reviews = scrape(name, limit)
+                cache.set(name, reviews, expire=3600)
+                return jsonify(reviews)
+    else:
+        reviews = scrape(name, limit)
+        cache.set(name, reviews, expire=3600)  # Cache for 1 hour
+        return jsonify(reviews)
     
-    reviews = scrape(name)
-    cache.set(name, reviews, expire=3600)  # Cache for 1 hour
-    return jsonify(reviews)
+    
+def get_company_reviews_count(name):
+    conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT review_count FROM Company WHERE name = ?', (name,))
+    review_count = cursor.fetchone()[0]
+    conn.close()
+    return review_count
 
 @app.route('/companies', methods=['GET'])
 def get_companies():
@@ -240,7 +299,7 @@ def get_companies():
     return jsonify(companies)
 
 
-@app.route('/rescrape', methods=['POST'])
+@app.route('/rescrape', methods=['GET'])
 def rescrape():
     scrape_all_companies()
     cache.clear()  # Clear the cache after rescraping
