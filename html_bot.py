@@ -147,7 +147,7 @@ def extract_business_info(json_data):
 # trustpilot
 # pobieranie ilosci stron
 
-scrapeCategories("bank")
+#scrapeCategories("bank")
 #scrapeCategories("car_dealer")
 #scrapeCategories("jewelry_store")
 #scrapeCategories("travel_insurance_company")
@@ -155,7 +155,7 @@ scrapeCategories("bank")
 #scrapeCategories("clothing_store")
 #scrapeCategories("fitness_and_nutrition_service")
 
-scrapeCategories("insurance_agency")
+#scrapeCategories("insurance_agency")
 
 # scrapeCategories("mortgage_broker")
 

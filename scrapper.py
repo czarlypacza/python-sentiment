@@ -106,7 +106,31 @@ def update_company_data(name, url, review_count):
 
 def scrape(name, limit=None):
     name_of_company = name.lower()
+    # Find partial matches
     matched_names = [name for name in global_names if name_of_company in name]
+    print(matched_names)
+    
+    # Score the matches
+    scored_matches = []
+    for match in matched_names:
+        search_len = len(name_of_company)
+        match_len = len(match)
+        
+        # Calculate match percentage
+        matching_chars = sum(1 for c in name_of_company if c in match)
+        match_score = (matching_chars / search_len) * 100
+        
+        # Penalize for extra characters
+        extra_chars = match_len - search_len
+        if extra_chars > 0:
+            penalty = (extra_chars / match_len) * 100
+            match_score = match_score / (1 + penalty/100)
+            
+        scored_matches.append((match, match_score))
+    
+    # Sort by score and get names only
+    matched_names = [name for name, score in sorted(scored_matches, key=lambda x: x[1], reverse=True)]
+    matched_names = matched_names[:1]
     print(matched_names)
 
     if len(matched_names) == 1:
@@ -147,10 +171,12 @@ def scrape(name, limit=None):
             print(f"page {i}")
 
         # review_count = len(reviews[name_of_company])
-        update_company_data(name_of_company, url, int(review_count))
+        update_company_data(name_of_company, url, int(review_count.replace(',', '')))
 
         print(reviews)
+        print(len(reviews[name_of_company]))
         limited_reviews = reviews[name_of_company][:limit] if limit else reviews[name_of_company]
+        print(len(limited_reviews))
         return {name_of_company: limited_reviews}
 
 
@@ -246,7 +272,8 @@ def scrape_all_companies():
     #scrapeCategories("mortgage_broker")
 
     #scrapeCategories("real_estate_agents")
-    scrapeCategories("womens_clothing_store")
+    #scrapeCategories("womens_clothing_store")\
+    return 
 
 #scrape_all_companies()
 

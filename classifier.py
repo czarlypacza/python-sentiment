@@ -147,7 +147,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.multioutput import MultiOutputRegressor
 
 # Initialize the RandomForestRegressor
-rf_regressor = RandomForestRegressor(random_state=0)
+rf_regressor = RandomForestRegressor(random_state=0, )
 
 # Wrap the RandomForestRegressor with MultiOutputRegressor
 multi_output_regressor = MultiOutputRegressor(rf_regressor)
