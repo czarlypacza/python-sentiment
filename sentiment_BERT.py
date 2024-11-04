@@ -93,4 +93,4 @@ def classify_review():
     return jsonify(response)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5002)  # Runs the Flask server accessible from other devices
+    app.run(host='0.0.0.0', port=5002, threaded=True)  # Runs the Flask server accessible from other devices
