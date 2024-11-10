@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 import requests
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, TrainingArguments, Trainer, DataCollatorWithPadding
@@ -156,7 +156,22 @@ def train_model():
     # Reload the model
     load_model(model_path)
 
+#export API_KEYS='ABCD-EFGH-IJKL-MNOP,QRST-UVWX-YZAB-CDEF,GHIJ-KLMN-OPQR-STUV,WXYZ-ABCD-EFGH-IJKL,MNOP-QRST-UVWX-YZAB'
+
+def check_api_key(api_key):
+    valid_api_keys = os.getenv('API_KEYS').split(',')
+    return api_key in valid_api_keys
+
+def requires_api_key(f):
+    def decorated(*args, **kwargs):
+        api_key = request.headers.get('x-api-key')
+        if not api_key or not check_api_key(api_key):
+            return Response('Unauthorized', 401)
+        return f(*args, **kwargs)
+    return decorated
+
 @app.route('/retrain', methods=['POST'])
+@requires_api_key
 def retrain_endpoint():
     train_model()
     return jsonify({"message": "Model retrained and reloaded successfully"}), 200
