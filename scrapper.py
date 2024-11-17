@@ -13,6 +13,7 @@ cache = dc.Cache('cache_directory')
 
 #database setup during the first run
 import sqlite3
+import os
 
 def init_db():
     conn = sqlite3.connect('../NextJS/nextjs_front/prisma/scrapper.db')
@@ -81,14 +82,20 @@ def scrape_reviews(review_page, name_of_company, reviews):
     review_elements = review_page.find_all('div', attrs={"data-review-content": "true"})
 
     for review_element in review_elements:
-        # Scrape the title and text of the review
+        review_section = review_element.find_parent('section', class_='styles_reviewContentwrapper__zH_9M')
+        
+        rating_div = review_section.find('div', attrs={"data-service-review-rating": True})
+        rating = int(rating_div['data-service-review-rating']) if rating_div else None
+
         title = review_element.find('h2').get_text()
         text = review_element.find_all('p')[0].get_text()
 
-        # Create a dictionary for the review
-        review = {"title": title, "text": text}
+        review = {
+            "title": title,
+            "text": text,
+            "rating": rating
+        }
 
-        # Append the review to the list associated with the company
         reviews[name_of_company].append(review)
 
     return reviews
@@ -104,8 +111,12 @@ def update_company_data(name, url, review_count):
     conn.close()
 
 
-def scrape(name, limit=None):
+def scrape(name, limit=None, stars=None):
     name_of_company = name.lower()
+
+    if len(name_of_company) < 1:
+        return {"error": "Name of the company is too short"}
+    
     # Find partial matches
     matched_names = [name for name in global_names if name_of_company in name]
     print(matched_names)
@@ -138,6 +149,11 @@ def scrape(name, limit=None):
         url = global_hrefs[global_names_index]
         print(url)
 
+        if stars:
+            url = f"{global_hrefs[global_names_index]}?stars={stars}"
+        else:
+            url = f"{global_hrefs[global_names_index]}"
+
         review_page = scrape_website(url)
 
         # with open(f"{name_of_company}_page.html", "w", encoding="utf-8") as file:
@@ -165,12 +181,14 @@ def scrape(name, limit=None):
         for i in range(2, number_of_pages + 1):
             if limit and len(reviews[name_of_company]) >= limit:
                 break
-            url = f"{global_hrefs[global_names_index]}?page={i}"
+            if stars:
+                url = f"{global_hrefs[global_names_index]}?page={i}&stars={stars}"
+            else:
+                url = f"{global_hrefs[global_names_index]}?page={i}"
             review_page = scrape_website(url)
             reviews = scrape_reviews(review_page, name_of_company, reviews)
             print(f"page {i}")
 
-        # review_count = len(reviews[name_of_company])
         update_company_data(name_of_company, url, int(review_count.replace(',', '')))
 
         print(reviews)
@@ -332,6 +350,35 @@ def rescrape():
     cache.clear()  # Clear the cache after rescraping
     return jsonify({"message": "Rescraping started"}), 200  # Ensure a valid response tuple is returned
 
+@app.route('/scrape/<stars>', methods=['GET'])
+def scrape_all(stars):
+    #   "driveway", "Ruby Lane", "vanessaflair.com", "aardy", "seven corners","home zone furniture", "acitydiscount", "queensboro", "chrono24", "lost empire herbs","liftmode","suretybonds.com","trustage insurance agency","newday usa","figure","clever real estate","e-residence.com",,"rainbow shops","rotita","halara"
+    #
+    for name in ["western union","ensurem","dugood credit union", "ideal agent","rocket mortgage"]:
+        data = scrape(name, 1500, stars)
+        os.makedirs(f"./training_data_stars_{stars}", exist_ok=True)
+
+        with open(f"./training_data_stars_{stars}/data_{name}_stars_{stars}.json", "w") as file:
+            json.dump(data[name.lower()], file)
+        
+        time.sleep(60)
+    return jsonify({"message": "Scraping started"}), 200
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, threaded=True)  # Runs the Flask server accessible from other devices
 
+#scrapeCategories("bank")
+    #scrapeCategories("car_dealer")
+    #scrapeCategories("jewelry_store")
+    #scrapeCategories("travel_insurance_company")
+    
+    #scrapeCategories("furniture_store")
+    #scrapeCategories("clothing_store")
+    #scrapeCategories("fitness_and_nutrition_service")
+
+    #scrapeCategories("insurance_agency")
+
+    #scrapeCategories("mortgage_broker")
+
+    #scrapeCategories("real_estate_agents")
+    #scrapeCategories("womens_clothing_store")\

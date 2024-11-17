@@ -11,7 +11,7 @@ from sklearn.model_selection import GridSearchCV
 
 lemmatizer = WordNetLemmatizer()
 
-with open("global_data.json", "r") as file:
+with open("global_data_3class.json", "r") as file:
     data = json.load(file)
 
 
@@ -19,7 +19,7 @@ with open("global_data.json", "r") as file:
 all_reviews = []
 
 # Iterate through each rating (1-5)
-for rating in ["1", "2", "3", "4", "5"]:
+for rating in ["1", "2", "3"]:
     if rating in data:
         for review in data[rating]:
             all_reviews.append(review)
@@ -61,6 +61,9 @@ myDataset['body_len'] = myDataset['sentence'].apply(lambda x: len(x) - x.count("
 myDataset['punct%'] = myDataset['sentence'].apply(lambda x: count_punct(x))
 myDataset['CAPS%'] = myDataset['sentence'].apply(
     lambda x: len([x for x in x.split() if x.isupper()]) / len(x.split()) * 100 if len(x.split()) != 0 else 0)
+myDataset['word_count'] = myDataset['sentence'].apply(lambda x: len(x.split()))
+myDataset['all_Caps'] = myDataset['sentence'].apply(lambda x: len([x for x in x.split() if x.isupper()]))
+
 #pd.set_option('display.max_columns', None)
 print(myDataset.head(10))
 
@@ -73,17 +76,26 @@ print(myDataset.head(10))
 ### WEKTORYZACJA DANYCH ###
 
 def clean_text(text):
+    # First clean and tokenize the text
     text = "".join([word.lower() for word in text if word not in string.punctuation])
     tokens = re.split('\W+', text)
-    text = [lemmatizer.lemmatize(word) for word in tokens if word not in stopwords]
-    return text
+    # Lemmatize and remove stopwords
+    tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stopwords]
+    return " ".join(tokens)  # Return joined text instead of tokens
 
-# myDataset = myDataset[0:18000]
-
-tfidf_vect = TfidfVectorizer(analyzer=clean_text)
+# Modified TF-IDF vectorizer
+tfidf_vect = TfidfVectorizer(
+    preprocessor=clean_text,  # Use clean_text as preprocessor instead of analyzer
+    analyzer='word',  # Use default word analyzer
+    max_features=None,
+    ngram_range=(1, 2),  # Now ngrams will work
+    min_df=5,
+    max_df=0.95,
+    tokenizer=None  # Let TfidfVectorizer handle tokenization
+)
 X_tfidf = tfidf_vect.fit_transform(myDataset['sentence'])
 X_tfidf_feat = pd.concat(
-    [myDataset['body_len'], myDataset['punct%'], myDataset['CAPS%'], pd.DataFrame(X_tfidf.toarray())], axis=1)
+    [myDataset['body_len'], myDataset['punct%'], myDataset['CAPS%'],myDataset['word_count'],myDataset['all_Caps'] , pd.DataFrame(X_tfidf.toarray())], axis=1)
 print("\n\nTF-IDF:")
 print(X_tfidf_feat.head(16))
 
@@ -122,8 +134,8 @@ gs = GridSearchCV(
     param_grid=param,
     cv=skf,
     n_jobs=-1,
-    verbose=2,
-    pre_dispatch=5,
+    verbose=3,
+    pre_dispatch=1,
     return_train_score=True
 )
 
@@ -165,11 +177,14 @@ def make_prediction(input_text):
     input_data['punct%'] = input_data['sentence'].apply(lambda x: count_punct(x))
     input_data['CAPS%'] = input_data['sentence'].apply(
         lambda x: len([x for x in x.split() if x.isupper()]) / len(x.split()) * 100 if len(x.split()) != 0 else 0)
+    input_data['word_count'] = input_data['sentence'].apply(lambda x: len(x.split()))
+    input_data['all_Caps'] = input_data['sentence'].apply(lambda x: len([x for x in x.split() if x.isupper()]))
+
 
     # Transform the input
     X_input_tfidf = tfidf_vect.transform(input_data['sentence'])
     X_input_tfidf_feat = pd.concat(
-        [input_data['body_len'], input_data['punct%'], input_data['CAPS%'], pd.DataFrame(X_input_tfidf.toarray())],
+        [input_data['body_len'], input_data['punct%'], input_data['CAPS%'],input_data['word_count'],input_data['all_Caps'], pd.DataFrame(X_input_tfidf.toarray())],
         axis=1)
 
     # Make sure the columns are of type string
