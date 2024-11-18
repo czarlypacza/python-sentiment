@@ -75,8 +75,9 @@ def make_prediction(input_text):
 
 @app.route('/sentiment/<name>', methods=['GET'])
 def classify_reviews(name):
+    limit = request.args.get('limit', default=None, type=int)
     result = []
-    response = requests.get(f'http://localhost:5000/reviews/{name}')
+    response = requests.get(f'http://localhost:5000/reviews/{name}?limit={limit}')
     if response.status_code == 200:
         reviews = response.json()
         for review in reviews[name]:
