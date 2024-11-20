@@ -191,7 +191,7 @@ def make_prediction(input_text):
     X_input_tfidf_feat.columns = X_input_tfidf_feat.columns.astype(str)
 
     # Make the prediction
-    prediction = gs_fit.predict(X_input_tfidf_feat)
+    prediction = gs_fit.predict_proba(X_input_tfidf_feat)
 
     return prediction
 

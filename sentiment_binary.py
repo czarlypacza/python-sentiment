@@ -68,7 +68,7 @@ def make_prediction(input_text):
     X_input_tfidf_feat.columns = X_input_tfidf_feat.columns.astype(str)
 
     # Make the prediction
-    prediction = loaded_model.predict(X_input_tfidf_feat)
+    prediction = loaded_model.predict_proba(X_input_tfidf_feat)
 
     return prediction
 
@@ -81,11 +81,12 @@ def classify_reviews(name):
     if response.status_code == 200:
         reviews = response.json()
         for review in reviews[name]:
-            for sentence in review['text'].split('.'):
+            combined_text = review['title'] + '. ' + review['text']
+            for sentence in combined_text.split('.'):
                 if sentence.strip():
                     sentiment = make_prediction(sentence)
                     sentiment = sentiment.tolist()
-                    result.append({sentence: sentiment})
+                    result.append({sentence: sentiment[0]})
     else:
         return jsonify({"error": "Failed to fetch reviews"}), 500
     result = {'result': result}
@@ -109,10 +110,10 @@ def classify_review():
         if sentence.strip():
             sentiment = make_prediction(sentence)
             sentiment = sentiment.tolist()
-            label = sentiment[0]
+            neg, pos = sentiment[0]
             
-            pos = 1 if label == "positive" else 0
-            neg = -1 if label == "negative" else 0
+            label = "positive" if pos > neg else "negative"
+            label = "neutral" if pos == neg else label
 
             results.append({
                 "sentence": sentence,
