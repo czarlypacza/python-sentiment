@@ -1,5 +1,6 @@
 .fleet
 .idea
+.vscode
 cache_directory
 img
 new_model
@@ -16,3 +17,5 @@ logs
 fine_tuned_model
 
 BERT
+
+failed_models
