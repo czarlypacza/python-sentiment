@@ -22,7 +22,7 @@ lemmatizer = WordNetLemmatizer()
 stopwords = sw.words('english')
 
 # Load the fitted model
-with open('./model_RF_ML_binary/saved_model_new.pkl', 'rb') as file:
+with open('./current_models/model_RF_ML_binary/saved_model_new.pkl', 'rb') as file:
     loaded_model = pickle.load(file)
 
 
@@ -43,7 +43,7 @@ def count_punct(text):
 
 
 # Load the fitted TfidfVectorizer
-with open('./model_RF_ML_binary/tfidf_vect_new.pkl', 'rb') as file:
+with open('./current_models/model_RF_ML_binary/tfidf_vect_new.pkl', 'rb') as file:
     tfidf_vect = pickle.load(file)
 
 
@@ -87,7 +87,9 @@ def classify_reviews(name):
                     sentiment = make_prediction(sentence)
                     sentiment = sentiment.tolist()
                     result.append({sentence: sentiment[0]})
-    else:
+    if response.status_code == 404:
+        return jsonify({"error": "Company not found"}), 404
+    if response.status_code != 200 and response.status_code != 404:
         return jsonify({"error": "Failed to fetch reviews"}), 500
     result = {'result': result}
     return jsonify(result)

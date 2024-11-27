@@ -1,4 +1,5 @@
 # HSA_OVERRIDE_GFX_VERSION=10.3.0 /media/michal/dev1/sentiment/python/myenv/bin/python /media/michal/dev1/sentiment/python-sentiment/sentiment_BERT.py
+#export HSA_OVERRIDE_GFX_VERSION=10.3.0 
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
@@ -193,7 +194,7 @@ def classify_reviews(name):
                     result.append({sentence: sentiment})
     if response.status_code == 404:
         return jsonify({"error": "Company not found"}), 404
-    if response.status_code != 200 or response.status_code != 404:
+    if response.status_code != 200 and response.status_code != 404:
         return jsonify({"error": "Failed to fetch reviews"}), 500
     result = {'result': result}
     return jsonify(result)
