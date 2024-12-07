@@ -1,0 +1,86 @@
+{
+  "standardResults": {
+    "datasetType": "standard",
+    "timeTaken": 11271,
+    "accuracy": 0.8036666666666666,
+    "precision": {
+      "positive": 0.7479586281981492,
+      "negative": 0.8916595012897678
+    },
+    "recall": {
+      "positive": 0.916,
+      "negative": 0.6913333333333334
+    },
+    "f1Score": {
+      "positive": 0.8234941564279293,
+      "negative": 0.7788208787082237
+    },
+    "totalSamples": 3000,
+    "correctPredictions": 2411,
+    "neutralStats": {
+      "total": 0,
+      "missedPositives": 0,
+      "missedNegatives": 0,
+      "percentage": 0.0,
+      "trueNeutrals": null
+    }
+  },
+  "twitterResults": {
+    "datasetType": "twitter",
+    "timeTaken": 661633,
+    "accuracy": 0.6706118235003666,
+    "precision": {
+      "positive": 0.6356225492530679,
+      "negative": 0.7297663620381927,
+      "neutral": 0.0
+    },
+    "recall": {
+      "positive": 0.799060011575229,
+      "negative": 0.542254574462781,
+      "neutral": 0.0
+    },
+    "f1Score": {
+      "positive": 0.7080319722718351,
+      "negative": 0.6221896774636446,
+      "neutral": 0.0
+    },
+    "totalSamples": 200499,
+    "correctPredictions": 134457,
+    "neutralStats": {
+      "total": 0,
+      "missedPositives": 0,
+      "missedNegatives": 0,
+      "percentage": 0.0,
+      "trueNeutrals": 0
+    }
+  },
+  "additionalResults": {
+    "datasetType": "additional",
+    "timeTaken": 89065,
+    "accuracy": 0.49648848295185766,
+    "precision": {
+      "positive": 0.45046561202737573,
+      "negative": 0.5814603832211289,
+      "neutral": 0.0
+    },
+    "recall": {
+      "positive": 0.6652307182503521,
+      "negative": 0.3643088903309539,
+      "neutral": 0.0
+    },
+    "f1Score": {
+      "positive": 0.5371776432417968,
+      "negative": 0.4479553161779374,
+      "neutral": 0.0
+    },
+    "totalSamples": 27481,
+    "correctPredictions": 13644,
+    "neutralStats": {
+      "total": 0,
+      "missedPositives": 0,
+      "missedNegatives": 0,
+      "percentage": 0.0,
+      "trueNeutrals": 0
+    }
+  }
+}

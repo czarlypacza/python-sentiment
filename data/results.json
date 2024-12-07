@@ -1,0 +1,86 @@
+{
+  "standardResults": {
+    "datasetType": "standard",
+    "timeTaken": 11410,
+    "accuracy": 0.7093333333333334,
+    "precision": {
+      "positive": 0.7847866419294991,
+      "negative": 0.927645788336933
+    },
+    "recall": {
+      "positive": 0.9498502994011976,
+      "negative": 0.7116818558409279
+    },
+    "f1Score": {
+      "positive": 0.8594649508973925,
+      "negative": 0.8054383497421472
+    },
+    "totalSamples": 3000,
+    "correctPredictions": 2128,
+    "neutralStats": {
+      "total": 457,
+      "missedPositives": 164,
+      "missedNegatives": 293,
+      "percentage": 15.233333333333333,
+      "trueNeutrals": null
+    }
+  },
+  "twitterResults": {
+    "datasetType": "twitter",
+    "timeTaken": 650164,
+    "accuracy": 0.5588556551404247,
+    "precision": {
+      "positive": 0.651863409950189,
+      "negative": 0.7828885767790262,
+      "neutral": 0.0013509198536094122
+    },
+    "recall": {
+      "positive": 0.8338600509231419,
+      "negative": 0.5736074189319972,
+      "neutral": 0.0013509198536094122
+    },
+    "f1Score": {
+      "positive": 0.7317147107530806,
+      "negative": 0.6621039756216548,
+      "neutral": 0.0013509198536094122
+    },
+    "totalSamples": 200499,
+    "correctPredictions": 112050,
+    "neutralStats": {
+      "total": 40713,
+      "missedPositives": 22044,
+      "missedNegatives": 18614,
+      "percentage": 20.305836936842578,
+      "trueNeutrals": 55
+    }
+  },
+  "additionalResults": {
+    "datasetType": "additional",
+    "timeTaken": 87802,
+    "accuracy": 0.6201011608020086,
+    "precision": {
+      "positive": 0.5382956521739131,
+      "negative": 0.670843989769821,
+      "neutral": 0.7674990541051835
+    },
+    "recall": {
+      "positive": 0.7503878975950349,
+      "negative": 0.4414710090044602,
+      "neutral": 0.7674990541051835
+    },
+    "f1Score": {
+      "positive": 0.6268886458459918,
+      "negative": 0.5325077399380805,
+      "neutral": 0.7674990541051835
+    },
+    "totalSamples": 27481,
+    "correctPredictions": 17041,
+    "neutralStats": {
+      "total": 5286,
+      "missedPositives": 437,
+      "missedNegatives": 792,
+      "percentage": 19.235107892725882,
+      "trueNeutrals": 4057
+    }
+  }
+}

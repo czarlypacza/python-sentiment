@@ -1,6 +1,7 @@
 # HSA_OVERRIDE_GFX_VERSION=10.3.0 /media/michal/dev1/sentiment/python/myenv/bin/python /media/michal/dev1/sentiment/python-sentiment/sentiment_BERT.py
 #export HSA_OVERRIDE_GFX_VERSION=10.3.0 
 
+import time
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 import requests
@@ -17,6 +18,7 @@ CORS(app)
 
 # Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Device: {device}")
 
 # Load the model and tokenizer from the fine-tuned model path
 model_path = '../python/regressor/my_awesome_model2/checkpoint-31500'
@@ -236,6 +238,217 @@ def classify_review():
     print(response)
 
     return jsonify(response)
+
+# Add these imports at the top if not present
+import os
+from pathlib import Path
+
+# Add this endpoint to sentiment_BERT.py
+@app.route('/analyze', methods=['PUT'])
+def analyze_datasets():
+    try:
+        # Define data directory - adjust path as needed
+        data_dir = Path('./data')
+        
+        # Analyze standard dataset
+        standard_results = analyze_standard_dataset(data_dir)
+        
+        # Analyze Twitter dataset
+        twitter_results = analyze_twitter_dataset(data_dir)
+        
+        # Analyze additional dataset
+        additional_results = analyze_additional_dataset(data_dir)
+        
+        # Save results
+        results = {
+            "standardResults": standard_results,
+            "twitterResults": twitter_results,
+            "additionalResults": additional_results
+        }
+        
+        with open(data_dir / 'results.json', 'w') as f:
+            json.dump(results, f, indent=2)
+            
+        return jsonify(results), 200
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+def analyze_standard_dataset(data_dir):
+    files = ['imdb_labelled.txt', 'yelp_labelled.txt', 'amazon_cells_labelled.txt']
+    test_data = []
+    
+    for file in files:
+        file_path = data_dir / file
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.strip():
+                    sentence, score = line.strip().split('\t')
+                    sentiment = 'positive' if int(score) == 1 else 'negative'
+                    test_data.append({"text": sentence, "sentiment": sentiment})
+                    
+    return calculate_metrics(test_data, "standard")
+
+def analyze_twitter_dataset(data_dir):
+    twitter_file = data_dir / 'test_twitter.csv'
+    twitter_data = []
+    
+    with open(twitter_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.strip():
+                # Parse CSV line similar to TypeScript version
+                parts = line.strip().split('","')
+                if len(parts) >= 6:
+                    sentiment = parts[0].replace('"', '')
+                    text = parts[5].replace('"', '')
+                    
+                    # Map sentiment values
+                    sentiment_map = {
+                        '4': 'positive',
+                        '2': 'neutral',
+                        '0': 'negative'
+                    }
+                    mapped_sentiment = sentiment_map.get(sentiment.rstrip(','))
+                    
+                    if mapped_sentiment:
+                        twitter_data.append({"text": text, "sentiment": mapped_sentiment})
+                        
+    return calculate_metrics(twitter_data, "twitter")
+
+# Add this function to load and analyze the additional dataset
+def analyze_additional_dataset(data_dir):
+    additional_file = data_dir / 'train.jsonl'
+    additional_data = []
+
+    with open(additional_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            if line.strip():
+                entry = json.loads(line.strip())
+                additional_data.append({"text": entry["text"], "sentiment": entry["label_text"]})
+
+    return calculate_metrics(additional_data, "additional")
+
+def calculate_metrics(test_data, dataset_type):
+    true_positives = 0
+    true_negatives = 0
+    true_neutrals = 0
+    false_positives = 0
+    false_negatives = 0
+    false_neutrals = 0  # Added this
+    neutral_predictions = 0
+    neutral_positive_misses = 0
+    neutral_negative_misses = 0
+    
+    total = len(test_data)
+    correct = 0
+    
+    # Determine if dataset includes neutral class
+    neutral_in_dataset = any(item['sentiment'] == 'neutral' for item in test_data)
+    
+    # Start timing only predictions
+    prediction_time = 0
+    for item in test_data:
+        start_time = time.time()
+        prediction = make_prediction(item["text"])
+        prediction_time += time.time() - start_time
+        
+        pos_score = prediction["positive"]
+        neg_score = prediction["negative"]
+        pos_score = round(pos_score, 4)
+        neg_score = round(neg_score, 4)
+        
+        # Define a threshold for neutral classification
+        threshold = 0.0001
+        
+        if abs(pos_score - 0.5) <= threshold and abs(neg_score - 0.5) <= threshold:
+            predicted = "neutral"
+        else:
+            if pos_score > abs(neg_score):
+                predicted = "positive"
+            elif abs(neg_score) > pos_score:
+                predicted = "negative"
+        
+        # predicted = "neutral"
+        # if pos_score > abs(neg_score):
+        #     predicted = "positive"
+        # elif abs(neg_score) > pos_score:
+        #     predicted = "negative"
+            
+        if predicted == "neutral":
+            neutral_predictions += 1
+            if item["sentiment"] == "positive":
+                neutral_positive_misses += 1
+                false_neutrals += 1
+            elif item["sentiment"] == "negative":
+                neutral_negative_misses += 1
+                false_neutrals += 1
+            elif item["sentiment"] == "neutral":
+                correct += 1
+                true_neutrals += 1
+        elif predicted == item["sentiment"]:
+            correct += 1
+            if predicted == "positive":
+                true_positives += 1
+            else:
+                true_negatives += 1
+        else:
+            if predicted == "positive":
+                false_positives += 1
+            else:
+                false_negatives += 1
+
+    accuracy = correct / total
+    precision_pos = true_positives / (true_positives + false_positives or 1)  
+    precision_neg = true_negatives / (true_negatives + false_negatives or 1)
+    recall_pos = true_positives / (true_positives + false_negatives or 1)
+    recall_neg = true_negatives / (true_negatives + false_positives or 1)
+    
+    f1_pos = 2 * (precision_pos * recall_pos) / (precision_pos + recall_pos or 1)
+    f1_neg = 2 * (precision_neg * recall_neg) / (precision_neg + recall_neg or 1)
+
+    # Calculate neutral metrics if neutral class is present
+    if neutral_in_dataset:
+        precision_neu = true_neutrals / (true_neutrals + false_neutrals or 1)
+        recall_neu = true_neutrals / (true_neutrals + false_neutrals or 1)
+        f1_neu = 2 * (precision_neu * recall_neu) / (precision_neu + recall_neu or 1)
+    else:
+        precision_neu = recall_neu = f1_neu = None
+
+    result = {
+        "datasetType": dataset_type,
+        "timeTaken": int(prediction_time * 1000),
+        "accuracy": accuracy,
+        "precision": {
+            "positive": precision_pos,
+            "negative": precision_neg
+        },
+        "recall": {
+            "positive": recall_pos,
+            "negative": recall_neg
+        },
+        "f1Score": {
+            "positive": f1_pos,
+            "negative": f1_neg
+        },
+        "totalSamples": total,
+        "correctPredictions": correct,
+        "neutralStats": {
+            "total": neutral_predictions,
+            "missedPositives": neutral_positive_misses,
+            "missedNegatives": neutral_negative_misses,
+            "percentage": (neutral_predictions / total) * 100,
+            "trueNeutrals": true_neutrals if neutral_in_dataset else None
+        }
+    }
+
+    # Add neutral metrics if applicable
+    if neutral_in_dataset:
+        result["precision"]["neutral"] = precision_neu
+        result["recall"]["neutral"] = recall_neu
+        result["f1Score"]["neutral"] = f1_neu
+
+    return result
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, threaded=True)  # Runs the Flask server accessible from other devices
